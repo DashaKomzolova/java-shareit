@@ -1,8 +1,7 @@
-package ru.practicum.shareit.user;
+package ru.practicum.shareit.user.repository;
 
 import org.springframework.stereotype.Repository;
 import ru.practicum.shareit.exception.DuplicateException;
-import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.user.model.User;
 
 import java.util.*;
@@ -30,44 +29,31 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
-    public User getUserById(Long id) {
-        User foundUser = users.get(id);
-
-        if (foundUser == null) {
-            throw new NotFoundException("Пользователя с таким id не существует");
-        } else {
-            return foundUser;
-        }
+    public Optional<User> getUserById(Long id) {
+        return Optional.ofNullable(users.get(id));
     }
 
     @Override
-    public User updateUser(Long id, User user) {
-        User foundUser = getUserById(id);
+    public User updateUser(Long id, User user, User updatedUser) {
 
         if (checkEmailExist(id, user)) {
             throw new DuplicateException("Пользователь с таким email уже существует");
         }
 
         if (user.getName() != null && !user.getName().isBlank()) {
-            foundUser.setName(user.getName());
+            updatedUser.setName(user.getName());
         }
 
         if (user.getEmail() != null && !user.getEmail().isBlank()) {
-            foundUser.setEmail(user.getEmail());
+            updatedUser.setEmail(user.getEmail());
         }
 
-        return foundUser;
+        return updatedUser;
     }
 
     @Override
-    public void deleteUserById(Long id) {
-        User foundUser = users.get(id);
-
-        if (foundUser == null) {
-            throw new NotFoundException("Пользователя с таким id не существует");
-        } else {
-            users.remove(foundUser.getId());
-        }
+    public void deleteUser(User user) {
+        users.remove(user.getId());
     }
 
     private Long incrementId() {

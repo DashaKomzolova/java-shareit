@@ -1,13 +1,9 @@
-package ru.practicum.shareit.item;
+package ru.practicum.shareit.item.repository;
 
 import org.springframework.stereotype.Repository;
-import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.item.model.Item;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Repository
 public class ItemRepositoryImpl implements ItemRepository {
@@ -16,39 +12,34 @@ public class ItemRepositoryImpl implements ItemRepository {
     private Long lastId = 0L;
 
     @Override
-    public Item addItem(Item item) {
+    public Item addItem(Long userId, Item item) {
+        item.setOwnerId(userId);
         item.setId(incrementId());
         items.put(item.getId(), item);
         return item;
     }
 
     @Override
-    public Item updateItem(Item item, Long id) {
-        Item foundItem = getItemById(id);
+    public Item updateItem(Item item, Item updatedItem) {
 
         if (item.getName() != null && !item.getName().isBlank()) {
-            foundItem.setName(item.getName());
+            updatedItem.setName(item.getName());
         }
 
         if (item.getDescription() != null && !item.getDescription().isBlank()) {
-            foundItem.setDescription(item.getDescription());
+            updatedItem.setDescription(item.getDescription());
         }
 
         if (item.getAvailable() != null) {
-            foundItem.setAvailable(item.getAvailable());
+            updatedItem.setAvailable(item.getAvailable());
         }
 
-        return foundItem;
+        return updatedItem;
     }
 
     @Override
-    public Item getItemById(Long id) {
-        Item foundItem = items.get(id);
-
-        if (foundItem == null) {
-            throw new NotFoundException("Такого товара не существует");
-        }
-        return foundItem;
+    public Optional<Item> getItemById(Long id) {
+        return Optional.ofNullable(items.get(id));
     }
 
     @Override
@@ -56,7 +47,7 @@ public class ItemRepositoryImpl implements ItemRepository {
         List<Item> allItems = new ArrayList<>();
 
         for (Item item : items.values()) {
-            if (item.getOwner().getId().equals(userId)) {
+            if (item.getOwnerId().equals(userId)) {
                 allItems.add(item);
             }
         }
@@ -66,9 +57,6 @@ public class ItemRepositoryImpl implements ItemRepository {
 
     @Override
     public List<Item> searchByNameAndDescription(String text) {
-        if (text == null || text.isBlank()) {
-            return List.of();
-        }
 
         List<Item> allMatching = new ArrayList<>();
         String textLower = text.toLowerCase();
