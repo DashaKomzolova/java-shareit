@@ -14,7 +14,6 @@ public class ItemMapper {
         item.setName(itemCreateRequest.getName());
         item.setDescription(itemCreateRequest.getDescription());
         item.setAvailable(itemCreateRequest.getAvailable());
-        item.setRequestId(itemCreateRequest.getRequestId());
         return item;
     }
 
@@ -24,8 +23,6 @@ public class ItemMapper {
         item.setName(itemRequest.getName());
         item.setDescription(itemRequest.getDescription());
         item.setAvailable(itemRequest.getAvailable());
-        item.setOwnerId(itemRequest.getOwnerId());
-        item.setRequestId(itemRequest.getRequestId());
         return item;
     }
 
@@ -35,8 +32,8 @@ public class ItemMapper {
         itemResponse.setName(item.getName());
         itemResponse.setDescription(item.getDescription());
         itemResponse.setAvailable(item.getAvailable());
-        itemResponse.setOwnerId(item.getOwnerId());
-        itemResponse.setRequestId(item.getRequestId());
+        itemResponse.setOwnerId(item.getOwner() != null ? item.getOwner().getId() : null);
+        itemResponse.setRequestId(item.getRequest() != null ? item.getRequest().getId() : null);
         return itemResponse;
     }
 

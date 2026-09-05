@@ -2,6 +2,7 @@ package ru.practicum.shareit.user.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import ru.practicum.shareit.exception.DuplicateException;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.user.repository.UserRepository;
 import ru.practicum.shareit.user.dto.request.UserCreateRequest;
@@ -20,17 +21,21 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserResponse addUser(UserCreateRequest userCreateRequest) {
-        return UserMapper.toUserResponse(userRepository.addUser(UserMapper.toUser(userCreateRequest)));
+        if (userRepository.existsByEmail(userCreateRequest.getEmail())) {
+            throw new DuplicateException("Пользователь с таким email уже существует");
+        }
+
+        return UserMapper.toUserResponse(userRepository.save(UserMapper.toUser(userCreateRequest)));
     }
 
     @Override
     public List<UserResponse> getAllUsers() {
-        return UserMapper.toUserResponseList(userRepository.getAllUsers());
+        return UserMapper.toUserResponseList(userRepository.findAll());
     }
 
     @Override
     public UserResponse getUserResponseById(Long id) {
-        return UserMapper.toUserResponse(userRepository.getUserById(id)
+        return UserMapper.toUserResponse(userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Пользователь с id " + id + " не найден")));
     }
 
@@ -38,18 +43,30 @@ public class UserServiceImpl implements UserService {
     public UserResponse updateUser(Long id, UserRequest userRequest) {
         User updatedUser = getUserById(id);
 
-        return UserMapper.toUserResponse(userRepository.updateUser(id, UserMapper.toUser(userRequest), updatedUser));
+        if (userRequest.getEmail() != null && !userRequest.getEmail().isBlank()) {
+            if (userRepository.existsByEmailAndIdNot(userRequest.getEmail(), id)) {
+                throw new DuplicateException("Пользователь с таким email уже существует");
+            }
+            updatedUser.setEmail(userRequest.getEmail());
+        }
+
+        if (userRequest.getName() != null && !userRequest.getName().isBlank()) {
+            updatedUser.setName(userRequest.getName());
+        }
+
+        return UserMapper.toUserResponse(userRepository.save(updatedUser));
     }
 
     @Override
     public void deleteUser(Long id) {
         User user = getUserById(id);
 
-        userRepository.deleteUser(user);
+        userRepository.delete(user);
     }
 
-    private User getUserById(Long id) {
-        return userRepository.getUserById(id)
+    @Override
+    public User getUserById(Long id) {
+        return userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Пользователь с id " + id + " не найден"));
     }
 }
