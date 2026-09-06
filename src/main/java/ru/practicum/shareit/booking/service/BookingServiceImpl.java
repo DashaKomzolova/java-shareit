@@ -10,6 +10,7 @@ import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.booking.model.Status;
 import ru.practicum.shareit.booking.repository.BookingRepository;
 import ru.practicum.shareit.exception.BookingAlreadyProcessedException;
+import ru.practicum.shareit.exception.BookingDatesOverlapException;
 import ru.practicum.shareit.exception.DatesException;
 import ru.practicum.shareit.exception.ItemIsABookerItemException;
 import ru.practicum.shareit.exception.ItemIsNotAvailable;
@@ -26,6 +27,8 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class BookingServiceImpl implements BookingService {
+
+    private static final List<Status> ACTIVE_STATUSES = List.of(Status.WAITING, Status.APPROVED);
 
     private final BookingRepository bookingRepository;
     private final UserService userService;
@@ -46,6 +49,14 @@ public class BookingServiceImpl implements BookingService {
 
         if (!item.getAvailable()) {
             throw new ItemIsNotAvailable("Эту вещь нельзя забронировать, так как она недоступна");
+        }
+
+        boolean hasOverlap = bookingRepository.existsByItem_IdAndStatusInAndStartLessThanAndEndGreaterThan(
+                item.getId(), ACTIVE_STATUSES, bookingCreateRequest.getEnd(), bookingCreateRequest.getStart());
+
+        if (hasOverlap) {
+            throw new BookingDatesOverlapException(
+                    "Вещь уже забронирована на пересекающийся промежуток времени");
         }
 
         Booking booking = BookingMapper.toBooking(bookingCreateRequest);
@@ -90,41 +101,36 @@ public class BookingServiceImpl implements BookingService {
     public List<BookingResponse> getAllBookingsOfUser(Long userId, BookingState state) {
         userService.getUserById(userId);
 
-        List<Booking> bookings = bookingRepository.findByBooker_IdOrderByStartDesc(userId);
+        LocalDateTime now = LocalDateTime.now();
 
-        return BookingMapper.toBookingResponseList(filterByState(bookings, state));
+        List<Booking> bookings = switch (state) {
+            case ALL -> bookingRepository.findByBooker_IdOrderByStartDesc(userId);
+            case CURRENT -> bookingRepository.findByBooker_IdAndStartBeforeAndEndAfterOrderByStartDesc(userId, now, now);
+            case PAST -> bookingRepository.findByBooker_IdAndEndBeforeOrderByStartDesc(userId, now);
+            case FUTURE -> bookingRepository.findByBooker_IdAndStartAfterOrderByStartDesc(userId, now);
+            case WAITING -> bookingRepository.findByBooker_IdAndStatusOrderByStartDesc(userId, Status.WAITING);
+            case REJECTED -> bookingRepository.findByBooker_IdAndStatusOrderByStartDesc(userId, Status.REJECTED);
+        };
+
+        return BookingMapper.toBookingResponseList(bookings);
     }
 
     @Override
     public List<BookingResponse> getAllBookingsForOwner(Long userId, BookingState state) {
         userService.getUserById(userId);
 
-        List<Booking> bookings = bookingRepository.findByItem_Owner_IdOrderByStartDesc(userId);
-
-        return BookingMapper.toBookingResponseList(filterByState(bookings, state));
-    }
-
-    private List<Booking> filterByState(List<Booking> bookings, BookingState state) {
         LocalDateTime now = LocalDateTime.now();
 
-        return switch (state) {
-            case CURRENT -> bookings.stream()
-                    .filter(b -> !b.getStart().isAfter(now) && b.getEnd().isAfter(now))
-                    .toList();
-            case PAST -> bookings.stream()
-                    .filter(b -> b.getEnd().isBefore(now))
-                    .toList();
-            case FUTURE -> bookings.stream()
-                    .filter(b -> b.getStart().isAfter(now))
-                    .toList();
-            case WAITING -> bookings.stream()
-                    .filter(b -> b.getStatus() == Status.WAITING)
-                    .toList();
-            case REJECTED -> bookings.stream()
-                    .filter(b -> b.getStatus() == Status.REJECTED)
-                    .toList();
-            case ALL -> bookings;
+        List<Booking> bookings = switch (state) {
+            case ALL -> bookingRepository.findByItem_Owner_IdOrderByStartDesc(userId);
+            case CURRENT -> bookingRepository.findByItem_Owner_IdAndStartBeforeAndEndAfterOrderByStartDesc(userId, now, now);
+            case PAST -> bookingRepository.findByItem_Owner_IdAndEndBeforeOrderByStartDesc(userId, now);
+            case FUTURE -> bookingRepository.findByItem_Owner_IdAndStartAfterOrderByStartDesc(userId, now);
+            case WAITING -> bookingRepository.findByItem_Owner_IdAndStatusOrderByStartDesc(userId, Status.WAITING);
+            case REJECTED -> bookingRepository.findByItem_Owner_IdAndStatusOrderByStartDesc(userId, Status.REJECTED);
         };
+
+        return BookingMapper.toBookingResponseList(bookings);
     }
 
     private Booking getBookingOrThrow(Long bookingId) {

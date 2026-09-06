@@ -2,6 +2,7 @@ package ru.practicum.shareit.item.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.booking.model.Status;
 import ru.practicum.shareit.booking.repository.BookingRepository;
 import ru.practicum.shareit.exception.CommentNotAllowedException;
@@ -24,6 +25,8 @@ import ru.practicum.shareit.user.service.UserService;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -83,14 +86,30 @@ public class ItemServiceImpl implements ItemService {
         userService.getUserResponseById(userId);
 
         List<Item> items = itemRepository.findByOwnerId(userId);
+
+        if (items.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> itemIds = items.stream().map(Item::getId).toList();
         LocalDateTime now = LocalDateTime.now();
+
+        Map<Long, List<Booking>> bookingsByItem = bookingRepository
+                .findByItem_IdInAndStatusOrderByStartAsc(itemIds, Status.APPROVED)
+                .stream()
+                .collect(Collectors.groupingBy(booking -> booking.getItem().getId()));
+
+        Map<Long, List<Comment>> commentsByItem = commentRepository
+                .findByItem_IdInOrderByCreatedDesc(itemIds)
+                .stream()
+                .collect(Collectors.groupingBy(comment -> comment.getItem().getId()));
 
         return items.stream()
                 .map(item -> {
                     ItemResponse response = ItemMapper.toItemResponse(item);
-                    enrichWithBookings(response, item.getId(), now);
+                    enrichWithBookings(response, bookingsByItem.getOrDefault(item.getId(), List.of()), now);
                     response.setComments(CommentMapper.toCommentResponseList(
-                            commentRepository.findByItem_IdOrderByCreatedDesc(item.getId())));
+                            commentsByItem.getOrDefault(item.getId(), List.of())));
                     return response;
                 })
                 .toList();
@@ -142,11 +161,24 @@ public class ItemServiceImpl implements ItemService {
                 .orElseThrow(() -> new NotFoundException("Товар с id " + id + " не найден"));
     }
 
-    private void enrichWithBookings(ItemResponse response, Long itemId, LocalDateTime now) {
-        bookingRepository.findFirstByItem_IdAndStatusAndStartBeforeOrderByStartDesc(itemId, Status.APPROVED, now)
-                .ifPresent(b -> response.setLastBooking(new ItemBookingDto(b.getId(), b.getBooker().getId())));
+    private void enrichWithBookings(ItemResponse response, List<Booking> bookings, LocalDateTime now) {
+        Booking last = null;
+        Booking next = null;
 
-        bookingRepository.findFirstByItem_IdAndStatusAndStartAfterOrderByStartAsc(itemId, Status.APPROVED, now)
-                .ifPresent(b -> response.setNextBooking(new ItemBookingDto(b.getId(), b.getBooker().getId())));
+        for (Booking booking : bookings) {
+            if (booking.getStart().isBefore(now)) {
+                last = booking;
+            } else if (booking.getStart().isAfter(now) && next == null) {
+                next = booking;
+            }
+        }
+
+        if (last != null) {
+            response.setLastBooking(new ItemBookingDto(last.getId(), last.getBooker().getId()));
+        }
+
+        if (next != null) {
+            response.setNextBooking(new ItemBookingDto(next.getId(), next.getBooker().getId()));
+        }
     }
 }

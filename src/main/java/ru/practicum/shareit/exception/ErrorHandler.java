@@ -68,4 +68,10 @@ public class ErrorHandler {
     public ErrorResponse handleCommentNotAllowed(CommentNotAllowedException e) {
         return new ErrorResponse(e.getMessage());
     }
+
+    @ExceptionHandler(BookingDatesOverlapException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleBookingDatesOverlap(BookingDatesOverlapException e) {
+        return new ErrorResponse(e.getMessage());
+    }
 }
