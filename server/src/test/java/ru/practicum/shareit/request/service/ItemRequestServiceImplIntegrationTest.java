@@ -1,5 +1,7 @@
 package ru.practicum.shareit.request.service;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,13 +10,10 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.item.model.Item;
-import ru.practicum.shareit.item.repository.ItemRepository;
 import ru.practicum.shareit.request.dto.request.ItemRequestCreateRequest;
 import ru.practicum.shareit.request.dto.response.ItemRequestResponse;
 import ru.practicum.shareit.request.model.ItemRequest;
-import ru.practicum.shareit.request.repository.ItemRequestRepository;
 import ru.practicum.shareit.user.model.User;
-import ru.practicum.shareit.user.repository.UserRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,14 +29,8 @@ class ItemRequestServiceImplIntegrationTest {
     @Autowired
     private ItemRequestService itemRequestService;
 
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private ItemRequestRepository itemRequestRepository;
-
-    @Autowired
-    private ItemRepository itemRepository;
+    @PersistenceContext
+    private EntityManager entityManager;
 
     private User requestor;
     private User otherUser;
@@ -47,12 +40,17 @@ class ItemRequestServiceImplIntegrationTest {
         requestor = new User();
         requestor.setName("Requestor");
         requestor.setEmail("requestor_" + System.nanoTime() + "@mail.com");
-        requestor = userRepository.save(requestor);
+        requestor = persist(requestor);
 
         otherUser = new User();
         otherUser.setName("Other");
         otherUser.setEmail("other_" + System.nanoTime() + "@mail.com");
-        otherUser = userRepository.save(otherUser);
+        otherUser = persist(otherUser);
+    }
+
+    private <T> T persist(T entity) {
+        entityManager.persist(entity);
+        return entity;
     }
 
     @Test
@@ -109,7 +107,7 @@ class ItemRequestServiceImplIntegrationTest {
         item.setAvailable(true);
         item.setOwner(requestor);
         item.setRequest(request);
-        itemRepository.save(item);
+        persist(item);
 
         ItemRequestResponse response = itemRequestService.getRequestById(requestor.getId(), request.getId());
 
@@ -128,6 +126,6 @@ class ItemRequestServiceImplIntegrationTest {
         request.setDescription(description);
         request.setRequestor(owner);
         request.setCreated(created);
-        return itemRequestRepository.save(request);
+        return persist(request);
     }
 }

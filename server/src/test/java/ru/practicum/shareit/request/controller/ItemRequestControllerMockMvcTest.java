@@ -59,18 +59,6 @@ class ItemRequestControllerMockMvcTest {
     }
 
     @Test
-    void addItemRequest_shouldReturn400_whenDescriptionBlank() throws Exception {
-        ItemRequestCreateRequest request = new ItemRequestCreateRequest();
-        request.setDescription("");
-
-        mockMvc.perform(post("/requests")
-                        .header("X-Sharer-User-Id", 10L)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
     void getOwnRequests_shouldReturnList() throws Exception {
         ItemRequestResponse response = new ItemRequestResponse();
         response.setId(1L);

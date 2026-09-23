@@ -1,5 +1,7 @@
 package ru.practicum.shareit.booking.service;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,9 +20,7 @@ import ru.practicum.shareit.exception.ItemIsNotAvailable;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.exception.NotOwnerException;
 import ru.practicum.shareit.item.model.Item;
-import ru.practicum.shareit.item.repository.ItemRepository;
 import ru.practicum.shareit.user.model.User;
-import ru.practicum.shareit.user.repository.UserRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -36,11 +36,8 @@ class BookingServiceImplIntegrationTest {
     @Autowired
     private BookingService bookingService;
 
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private ItemRepository itemRepository;
+    @PersistenceContext
+    private EntityManager entityManager;
 
     private User owner;
     private User booker;
@@ -51,19 +48,24 @@ class BookingServiceImplIntegrationTest {
         owner = new User();
         owner.setName("Owner");
         owner.setEmail("owner_" + System.nanoTime() + "@mail.com");
-        owner = userRepository.save(owner);
+        owner = persist(owner);
 
         booker = new User();
         booker.setName("Booker");
         booker.setEmail("booker_" + System.nanoTime() + "@mail.com");
-        booker = userRepository.save(booker);
+        booker = persist(booker);
 
         availableItem = new Item();
         availableItem.setName("Drill");
         availableItem.setDescription("Powerful drill");
         availableItem.setAvailable(true);
         availableItem.setOwner(owner);
-        availableItem = itemRepository.save(availableItem);
+        availableItem = persist(availableItem);
+    }
+
+    private <T> T persist(T entity) {
+        entityManager.persist(entity);
+        return entity;
     }
 
     private BookingCreateRequest makeRequest(Long itemId, LocalDateTime start, LocalDateTime end) {
@@ -100,7 +102,7 @@ class BookingServiceImplIntegrationTest {
     @Test
     void addBooking_shouldThrowItemIsNotAvailable_whenItemNotAvailable() {
         availableItem.setAvailable(false);
-        itemRepository.save(availableItem);
+        entityManager.flush();
 
         assertThrows(ItemIsNotAvailable.class, () -> bookingService.addBooking(booker.getId(),
                 makeRequest(availableItem.getId(), LocalDateTime.now().plusDays(1), LocalDateTime.now().plusDays(2))));
@@ -173,7 +175,7 @@ class BookingServiceImplIntegrationTest {
         User stranger = new User();
         stranger.setName("Stranger");
         stranger.setEmail("stranger_" + System.nanoTime() + "@mail.com");
-        stranger = userRepository.save(stranger);
+        stranger = persist(stranger);
 
         Long strangerId = stranger.getId();
         assertThrows(NotOwnerException.class, () -> bookingService.getBookingById(strangerId, created.getId()));

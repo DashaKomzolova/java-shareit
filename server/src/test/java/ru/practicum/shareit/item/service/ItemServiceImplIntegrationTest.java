@@ -1,5 +1,7 @@
 package ru.practicum.shareit.item.service;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,7 +10,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.booking.model.Status;
-import ru.practicum.shareit.booking.repository.BookingRepository;
 import ru.practicum.shareit.exception.CommentNotAllowedException;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.exception.NotOwnerException;
@@ -18,9 +19,7 @@ import ru.practicum.shareit.item.dto.request.ItemRequest;
 import ru.practicum.shareit.item.dto.response.CommentResponse;
 import ru.practicum.shareit.item.dto.response.ItemResponse;
 import ru.practicum.shareit.item.model.Item;
-import ru.practicum.shareit.request.repository.ItemRequestRepository;
 import ru.practicum.shareit.user.model.User;
-import ru.practicum.shareit.user.repository.UserRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -36,14 +35,8 @@ class ItemServiceImplIntegrationTest {
     @Autowired
     private ItemService itemService;
 
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private BookingRepository bookingRepository;
-
-    @Autowired
-    private ItemRequestRepository itemRequestRepository;
+    @PersistenceContext
+    private EntityManager entityManager;
 
     private User owner;
     private User booker;
@@ -53,12 +46,17 @@ class ItemServiceImplIntegrationTest {
         owner = new User();
         owner.setName("Owner");
         owner.setEmail("owner_" + System.nanoTime() + "@mail.com");
-        owner = userRepository.save(owner);
+        owner = persist(owner);
 
         booker = new User();
         booker.setName("Booker");
         booker.setEmail("booker_" + System.nanoTime() + "@mail.com");
-        booker = userRepository.save(booker);
+        booker = persist(booker);
+    }
+
+    private <T> T persist(T entity) {
+        entityManager.persist(entity);
+        return entity;
     }
 
     private ItemCreateRequest makeCreateRequest(String name, String description, Boolean available, Long requestId) {
@@ -85,7 +83,7 @@ class ItemServiceImplIntegrationTest {
         itemRequest.setDescription("Need a drill");
         itemRequest.setRequestor(booker);
         itemRequest.setCreated(LocalDateTime.now());
-        itemRequest = itemRequestRepository.save(itemRequest);
+        itemRequest = persist(itemRequest);
 
         ItemResponse response = itemService.addItem(owner.getId(),
                 makeCreateRequest("Drill", "Powerful drill", true, itemRequest.getId()));
@@ -150,7 +148,7 @@ class ItemServiceImplIntegrationTest {
         pastBooking.setStatus(Status.APPROVED);
         pastBooking.setBooker(booker);
         pastBooking.setItem(fetchItemEntity(created.getId()));
-        bookingRepository.save(pastBooking);
+        persist(pastBooking);
 
         List<ItemResponse> items = itemService.getAllItemsOfUser(owner.getId());
 
@@ -185,7 +183,7 @@ class ItemServiceImplIntegrationTest {
         pastBooking.setStatus(Status.APPROVED);
         pastBooking.setBooker(booker);
         pastBooking.setItem(fetchItemEntity(created.getId()));
-        bookingRepository.save(pastBooking);
+        persist(pastBooking);
 
         CommentCreateRequest commentRequest = new CommentCreateRequest();
         commentRequest.setText("Great tool!");

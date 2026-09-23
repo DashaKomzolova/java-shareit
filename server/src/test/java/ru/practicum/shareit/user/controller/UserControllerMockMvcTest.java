@@ -63,30 +63,6 @@ class UserControllerMockMvcTest {
     }
 
     @Test
-    void addUser_shouldReturn400_whenNameBlank() throws Exception {
-        UserCreateRequest request = new UserCreateRequest();
-        request.setName("");
-        request.setEmail("ivan@mail.com");
-
-        mockMvc.perform(post("/users")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void addUser_shouldReturn400_whenEmailInvalid() throws Exception {
-        UserCreateRequest request = new UserCreateRequest();
-        request.setName("Ivan");
-        request.setEmail("not-an-email");
-
-        mockMvc.perform(post("/users")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
     void getAllUsers_shouldReturnListOfUsers() throws Exception {
         UserResponse first = new UserResponse();
         first.setId(1L);

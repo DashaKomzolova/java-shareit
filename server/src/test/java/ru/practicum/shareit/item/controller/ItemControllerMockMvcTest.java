@@ -64,20 +64,6 @@ class ItemControllerMockMvcTest {
     }
 
     @Test
-    void addItem_shouldReturn400_whenNameBlank() throws Exception {
-        ItemCreateRequest request = new ItemCreateRequest();
-        request.setName("");
-        request.setDescription("Powerful drill");
-        request.setAvailable(true);
-
-        mockMvc.perform(post("/items")
-                        .header("X-Sharer-User-Id", 10L)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
     void updateItem_shouldReturnUpdatedItem() throws Exception {
         ItemRequest request = new ItemRequest();
         request.setName("Updated drill");
@@ -168,18 +154,6 @@ class ItemControllerMockMvcTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.text").value("Great tool!"));
-    }
-
-    @Test
-    void addComment_shouldReturn400_whenTextBlank() throws Exception {
-        CommentCreateRequest request = new CommentCreateRequest();
-        request.setText("");
-
-        mockMvc.perform(post("/items/1/comment")
-                        .header("X-Sharer-User-Id", 20L)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
     }
 
     @Test
